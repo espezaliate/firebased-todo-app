@@ -7,6 +7,15 @@ import {
   onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/9.4.1/firebase-auth.js";
 
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  orderBy,
+} from "https://www.gstatic.com/firebasejs/9.4.1/firebase-firestore.js";
+
 function init() {
   const firebaseConfig = {
     apiKey: "AIzaSyCpVT6YJMyGxnKrhDFB6957kUI_wbtAF_4",
@@ -33,6 +42,23 @@ function init() {
   const toDoItemsWork = [];
   const toDoItemsHome = [];
   const toDoItemsElse = [];
+
+  const db = getFirestore();
+
+  const fetch = async () => {
+    const querySnapshot = await getDocs(collection(db, "todo"));
+
+    const ulNode = document.querySelector("ul");
+    ulNode.innerHTML = "";
+
+    querySnapshot.forEach((doc) => {
+      console.log(doc.id, " => ", doc.data());
+    });
+  };
+
+  fetch();
+
+  // User Authentication handling
 
   const showSection = (sectionName) => {
     document.querySelectorAll("section").forEach((section) => {
@@ -61,8 +87,17 @@ function init() {
     signOut(auth).catch(console.error);
   });
 
+  signInButton.addEventListener("click", () => {
+    showSection("signin");
+  });
+
+  signUpButton.addEventListener("click", () => {
+    showSection("signup");
+  });
+
   let userPrevState;
   onAuthStateChanged(auth, (user) => {
+    console.log(user);
     if (user) {
       showSection("signin-success");
     } else {
