@@ -1,11 +1,11 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.4.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.5.0/firebase-app.js";
 import {
   getAuth,
   createUserWithEmailAndPassword,
   signOut,
   signInWithEmailAndPassword,
   onAuthStateChanged,
-} from "https://www.gstatic.com/firebasejs/9.4.1/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/9.5.0/firebase-auth.js";
 
 import {
   getFirestore,
@@ -14,7 +14,9 @@ import {
   getDocs,
   query,
   orderBy,
-} from "https://www.gstatic.com/firebasejs/9.4.1/firebase-firestore.js";
+  deleteDoc,
+  doc,
+} from "https://www.gstatic.com/firebasejs/9.5.0/firebase-firestore.js";
 
 function init() {
   const firebaseConfig = {
@@ -27,7 +29,7 @@ function init() {
   };
 
   const app = initializeApp(firebaseConfig);
-
+  const db = getFirestore();
   const auth = getAuth();
 
   const createToDoItemButton = document.querySelector("#add-new-item");
@@ -43,7 +45,7 @@ function init() {
   const toDoItemsHome = [];
   const toDoItemsElse = [];
 
-  const db = getFirestore();
+  // Get todo tasks
 
   const fetch = async () => {
     const querySnapshot = await getDocs(collection(db, "todo"));
@@ -52,11 +54,47 @@ function init() {
     ulNode.innerHTML = "";
 
     querySnapshot.forEach((doc) => {
-      console.log(doc.id, " => ", doc.data());
+      const docElement = doc.data();
+      console.log(doc);
+      const docID = doc._document.key.path.segments;
+      const liNode = document.createElement("li");
+      ulNode.insertAdjacentElement("afterbegin", liNode);
+      liNode.innerHTML = `${docElement.task}<button id=${
+        docID[docID.length - 1]
+      }>Delete task</button>`;
+    });
+
+    const taskList = document.querySelectorAll("li");
+    const buttonListener = document.querySelectorAll("button");
+
+    buttonListener.forEach((e) => {
+      e.addEventListener("click", (e) => {
+        if (e.target.outerText == "Delete task") {
+          e.target.parentElement.remove();
+          console.log(e.target.id);
+          deleteDoc(doc(db, "todo", e.target.id));
+        }
+      });
     });
   };
 
   fetch();
+
+  // Adding new tasks to the list
+
+  createToDoItemButton.addEventListener("click", (e) => {
+    e.preventDefault();
+    const addTask = async () => {
+      await addDoc(collection(db, "todo"), {
+        task: `${toDoItemInput.value}`,
+        done: false,
+      });
+    };
+    addTask();
+    fetch();
+  });
+
+  // Delete task
 
   // User Authentication handling
 
