@@ -16,6 +16,7 @@ import {
   orderBy,
   deleteDoc,
   doc,
+  updateDoc,
 } from "https://www.gstatic.com/firebasejs/9.5.0/firebase-firestore.js";
 
 function init() {
@@ -40,40 +41,91 @@ function init() {
   const signInButton = document.querySelector("#switch-signin");
   const signUpButton = document.querySelector("#switch-signup");
 
-  const toDoItems = [];
-  const toDoItemsWork = [];
-  const toDoItemsHome = [];
-  const toDoItemsElse = [];
-
   // Get todo tasks
 
   const fetch = async () => {
-    const querySnapshot = await getDocs(collection(db, "todo"));
+    const querySnapshot = await getDocs(
+      query(collection(db, "todo"), orderBy("timestamp"))
+    );
 
     const ulNode = document.querySelector("ul");
     ulNode.innerHTML = "";
 
     querySnapshot.forEach((doc) => {
       const docElement = doc.data();
-      console.log(doc);
-      const docID = doc._document.key.path.segments;
+      const docID =
+        doc._document.key.path.segments[
+          doc._document.key.path.segments.length - 1
+        ];
       const liNode = document.createElement("li");
-      ulNode.insertAdjacentElement("afterbegin", liNode);
-      liNode.innerHTML = `${docElement.task}<button id=${
-        docID[docID.length - 1]
-      }>Delete task</button>`;
+      ulNode.insertAdjacentElement("beforeend", liNode);
+      liNode.innerHTML = `<div id=${docID}>${
+        docElement.task
+      }</div><div><label for="${
+        docElement.task
+      }">Done? </label><input type="checkbox" id="${docID}" name="${
+        docElement.task
+      }" ${
+        docElement.done == true ? `checked` : ``
+      }><div><button id=${docID}>Delete task</button><button id=${docID}>Edit task</button></div>`;
     });
 
-    const taskList = document.querySelectorAll("li");
+    // Delete task
+
     const buttonListener = document.querySelectorAll("button");
 
     buttonListener.forEach((e) => {
       e.addEventListener("click", (e) => {
         if (e.target.outerText == "Delete task") {
-          e.target.parentElement.remove();
-          console.log(e.target.id);
           deleteDoc(doc(db, "todo", e.target.id));
+          fetch();
+        } else if (e.target.outerText === "Edit task") {
+          const div = document.querySelectorAll("div");
+          div.forEach((z) => {
+            if (z.id == e.target.id) {
+              z.innerHTML = `<input id=${z.id}0></input>`;
+            }
+          });
+          e.target.outerHTML = `<button id=${e.target.id}>Save task</button>`;
+
+          const saveListener = document.querySelectorAll("button");
+
+          saveListener.forEach((e) => {
+            e.addEventListener("click", (e) => {
+              if (e.target.outerText == "Save task") {
+                const input = document.querySelectorAll("input");
+                input.forEach((x) => {
+                  if (x.id == `${e.target.id}0`) {
+                    updateDoc(doc(db, "todo", e.target.id), {
+                      task: x.value,
+                    });
+                    x.outerHTML = `<div id=${e.target.id}>${x.value}</div>`;
+                    e.target.outerHTML = ` <button id=${e.target.id}>Edit task</button>`;
+                    fetch();
+                  }
+                });
+              }
+            });
+          });
         }
+      });
+    });
+
+    // Finished task toggle
+
+    const checkboxListener = document.querySelectorAll("[type=checkbox]");
+
+    checkboxListener.forEach((e) => {
+      e.addEventListener("click", (e) => {
+        e.target.checked
+          ? updateDoc(doc(db, "todo", e.target.id), {
+              done: true,
+            })
+          : updateDoc(doc(db, "todo", e.target.id), {
+              done: false,
+            });
+
+        fetch();
       });
     });
   };
@@ -88,13 +140,13 @@ function init() {
       await addDoc(collection(db, "todo"), {
         task: `${toDoItemInput.value}`,
         done: false,
+        timestamp: +new Date(),
       });
+      toDoItemInput.value = "";
     };
     addTask();
     fetch();
   });
-
-  // Delete task
 
   // User Authentication handling
 
@@ -135,7 +187,6 @@ function init() {
 
   let userPrevState;
   onAuthStateChanged(auth, (user) => {
-    console.log(user);
     if (user) {
       showSection("signin-success");
     } else {
